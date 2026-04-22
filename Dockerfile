@@ -5,23 +5,38 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# dependências necessárias
 RUN apk add --no-cache libc6-compat
+
+# instalar pnpm
 RUN npm install -g pnpm
 
-# copiar projeto inteiro
+# copiar projeto inteiro (IMPORTANTE pro Prisma)
 COPY . .
 
-# 🔧 FIX direto no arquivo correto (monorepo papermark)
-RUN sed -i 's/has: \[{ type: "host" }\]/has: [{ type: "host", value: ".*" }]/g' apps/web/next.config.mjs || true
-RUN sed -i "s/has: \[{ type: 'host' }\]/has: [{ type: 'host', value: '.*' }]/g" apps/web/next.config.mjs || true
+# =========================================
+# 🔥 FIX GLOBAL DO ERRO DO NEXT (HOST HEADER)
+# =========================================
+RUN echo "🔧 Fixing Next.js host header issue..."
 
-# 🔍 debug (pra garantir)
-RUN grep -r "type: \"host\"" apps/web || true
+# corrige TODOS os arquivos js/mjs do projeto
+RUN find . \( -name "*.js" -o -name "*.mjs" \) \
+  -exec sed -i 's/type:[[:space:]]*"host"/type: "host", value: ".*"/g' {} \;
 
-# instalar deps
-RUN pnpm install
+RUN find . \( -name "*.js" -o -name "*.mjs" \) \
+  -exec sed -i "s/type:[[:space:]]*'host'/type: 'host', value: '.*'/g" {} \;
 
-# build
+# debug opcional (pode remover depois)
+RUN echo "🔍 Verificando ocorrências restantes..." && grep -r 'type: "host"' . || true
+
+# =========================================
+# instalar dependências (com prisma)
+# =========================================
+RUN pnpm install --unsafe-perm
+
+# =========================================
+# build Next.js
+# =========================================
 RUN pnpm build
 
 # ================================
@@ -33,8 +48,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# instalar pnpm
 RUN npm install -g pnpm
 
+# copiar build pronto
 COPY --from=builder /app ./
 
 EXPOSE 3000
