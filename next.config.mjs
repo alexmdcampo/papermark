@@ -115,8 +115,7 @@ const nextConfig = {
         source: "/services/:path*",
         has: [
           {
-            type: "host",
-            value: process.env.NEXT_PUBLIC_WEBHOOK_BASE_HOST,
+            type: "host"
           },
         ],
         headers: [
