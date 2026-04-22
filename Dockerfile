@@ -5,29 +5,23 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# deps necessárias
 RUN apk add --no-cache libc6-compat
-
-# instalar pnpm
 RUN npm install -g pnpm
 
-# copiar projeto inteiro (IMPORTANTE pro Prisma)
+# copiar projeto inteiro
 COPY . .
 
-# 🔍 Debug opcional (pode remover depois)
-RUN echo "🔎 Procurando arquivos next.config..." && find . -name "next.config.*"
+# 🔧 FIX direto no arquivo correto (monorepo papermark)
+RUN sed -i 's/has: \[{ type: "host" }\]/has: [{ type: "host", value: ".*" }]/g' apps/web/next.config.mjs || true
+RUN sed -i "s/has: \[{ type: 'host' }\]/has: [{ type: 'host', value: '.*' }]/g" apps/web/next.config.mjs || true
 
-# 🔧 FIX Next.js (corrige TODOS os casos de host inválido)
-RUN find . -type f -name "next.config.*" -exec sed -i 's/{ *type: *"host" *}/{ type: "host", value: ".*" }/g' {} \; || true
-RUN find . -type f -name "next.config.*" -exec sed -i "s/{ *type: *'host' *}/{ type: 'host', value: '.*' }/g" {} \; || true
+# 🔍 debug (pra garantir)
+RUN grep -r "type: \"host\"" apps/web || true
 
-# 🔍 Debug (verifica se ainda existe erro)
-RUN grep -r "type: \"host\"" . || true
-
-# instalar deps (agora com prisma schema presente)
+# instalar deps
 RUN pnpm install
 
-# build Next.js
+# build
 RUN pnpm build
 
 # ================================
@@ -39,10 +33,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# instalar pnpm
 RUN npm install -g pnpm
 
-# copiar build pronto
 COPY --from=builder /app ./
 
 EXPOSE 3000
