@@ -5,23 +5,20 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# deps necessárias
 RUN apk add --no-cache libc6-compat
 
 # instalar pnpm
 RUN npm install -g pnpm
 
-# copiar apenas deps primeiro (cache)
-COPY package.json pnpm-lock.yaml* ./
-
-RUN pnpm install
-
-# copiar resto do projeto
+# ⚠️ copia tudo primeiro (IMPORTANTE pro Prisma)
 COPY . .
 
-# 🔧 FIX do erro do Next (host header)
+# 🔧 FIX Next.js (erro do host)
 RUN sed -i 's/type: "host"/type: "host", value: ".*"/g' next.config.mjs || true
 RUN sed -i "s/type: 'host'/type: 'host', value: '.*'/g" next.config.mjs || true
+
+# instalar deps
+RUN pnpm install
 
 # build
 RUN pnpm build
@@ -35,10 +32,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# instalar pnpm
 RUN npm install -g pnpm
 
-# copiar apenas o necessário
 COPY --from=builder /app ./
 
 EXPOSE 3000
